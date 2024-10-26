@@ -3,16 +3,18 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
                                QComboBox, QListWidget, QDialog)
-from PySide6.QtSql import QSqlDatabase, QSqlQuery
 from widgets.menu_bar import MenuBar
+from logic.database_handler import DatabaseHandler
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.db_handler = DatabaseHandler()  # Instance of DatabaseHandler
         self.setWindowTitle("DangHub")
         self.setGeometry(100, 100, 600, 400)
         self.init_ui()
-        self.init_db()
+        self.load_members()  # Load members from database
 
     def init_ui(self):
         # Menu Bar
@@ -51,24 +53,14 @@ class MainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
-    def init_db(self):
-        # Setting up SQLite Database
-        self.db = QSqlDatabase.addDatabase("QSQLITE")
-        self.db.setDatabaseName("danghub.db")
+    def load_members(self):
+        members = self.db_handler.get_members()
+        self.member_list_widget.clear()
+        self.payer_combobox.clear()
 
-        if not self.db.open():
-            print("Unable to establish a database connection.")
-            sys.exit(1)
-
-        # Creating Members Table if not exists
-        query = QSqlQuery()
-        query.exec("""
-            CREATE TABLE IF NOT EXISTS members (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL
-            )
-        """)
-        self.load_members()
+        for member in members:
+            self.member_list_widget.addItem(member)
+            self.payer_combobox.addItem(member)
 
     def add_member_dialog(self):
         # Dialog to Add New Member
@@ -89,23 +81,9 @@ class MainWindow(QMainWindow):
 
     def add_member(self, name, dialog):
         if name:
-            query = QSqlQuery()
-            query.prepare("INSERT INTO members (name) VALUES (?)")
-            query.addBindValue(name)
-            if query.exec_():
+            if self.db_handler.add_member(name):
                 self.load_members()
                 dialog.accept()
-
-    def load_members(self):
-        # Load Members from Database into Checklist and ComboBox
-        self.member_list_widget.clear()
-        self.payer_combobox.clear()
-
-        query = QSqlQuery("SELECT name FROM members")
-        while query.next():
-            name = query.value(0)
-            self.member_list_widget.addItem(name)
-            self.payer_combobox.addItem(name)
 
     def calculate_dang(self):
         # Calculate each person's share
@@ -131,14 +109,17 @@ class MainWindow(QMainWindow):
                 result_text += f"{member} (Payer): 0 (Already Paid)\n"
             else:
                 result_text += f"{member}: {share_per_person}\n"
+                # Update balance in the database
+                self.db_handler.update_balance(member, share_per_person)
+            # Deduct the amount paid by the payer
+            if member == payer:
+                self.db_handler.update_balance(member, -total_amount)
 
         self.result_label.setText(result_text)
 
 
 if __name__ == "__main__":
-    import sys
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-
