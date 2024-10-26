@@ -3,7 +3,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
                                QComboBox, QTreeWidget, QTreeWidgetItem,
-                               QDialog)
+                               QDialog, QMessageBox)
 from PySide6.QtCore import Qt  # Import Qt for setting check states
 from widgets.menu_bar import MenuBar
 from logic.database_handler import DatabaseHandler
@@ -189,9 +189,9 @@ class MainWindow(QMainWindow):
                 self.result_label.setStyleSheet(style_sheet)
                 dialog.accept()
             else:
-                self.result_label.setText("Font size must be between 10 and 30.")
+                QMessageBox.warning(dialog, "Invalid Font Size", "Font size must be between 10 and 30.")
         except ValueError:
-            self.result_label.setText("Please enter a valid number for the font size.")
+            QMessageBox.warning(dialog, "Invalid Input", "Please enter a valid number for the font size.")
 
 
 if __name__ == "__main__":
