@@ -2,7 +2,9 @@ import sys
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
-                               QComboBox, QListWidget, QDialog)
+                               QComboBox, QTreeWidget, QTreeWidgetItem,
+                               QDialog)
+from PySide6.QtCore import Qt  # Import Qt for setting check states
 from widgets.menu_bar import MenuBar
 from logic.database_handler import DatabaseHandler
 
@@ -12,7 +14,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.db_handler = DatabaseHandler()  # Instance of DatabaseHandler
         self.setWindowTitle("DangHub")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 800, 500)
+        self.font_size = 16  # Default font size
         self.init_ui()
         self.load_members()  # Load members from database
 
@@ -24,23 +27,34 @@ class MainWindow(QMainWindow):
         # Main Layout
         main_layout = QVBoxLayout()
 
-        # Checklist for Members
-        self.member_list_widget = QListWidget()
-        main_layout.addWidget(QLabel("Select Members for Dang:"))
-        main_layout.addWidget(self.member_list_widget)
+        # Tree Widget for Members
+        self.member_tree_widget = QTreeWidget()
+        self.member_tree_widget.setStyleSheet(f"font-size: {self.font_size}px;")
+        self.member_tree_widget.setColumnCount(2)  # Columns: Member, Balance
+        self.member_tree_widget.setHeaderLabels(["Member", "Balance"])
+        self.member_tree_widget.itemChanged.connect(self.update_balance)  # Connect itemChanged signal
+        label = QLabel("Select Members for Dang:")
+        label.setStyleSheet(f"font-size: {self.font_size}px;")
+        main_layout.addWidget(label)
+        main_layout.addWidget(self.member_tree_widget)
 
         # ComboBox for selecting the payer (Mother Kharj)
-        main_layout.addWidget(QLabel("Select Payer (Mother Kharj):"))
+        payer_label = QLabel("Select Payer (Mother Kharj):")
+        payer_label.setStyleSheet(f"font-size: {self.font_size}px;")
+        main_layout.addWidget(payer_label)
         self.payer_combobox = QComboBox()
+        self.payer_combobox.setStyleSheet(f"font-size: {self.font_size}px;")
         main_layout.addWidget(self.payer_combobox)
 
         # Input for Expense Amount
         self.amount_input = QLineEdit()
+        self.amount_input.setStyleSheet(f"font-size: {self.font_size}px;")
         self.amount_input.setPlaceholderText("Enter the total expense amount")
         main_layout.addWidget(self.amount_input)
 
         # Calculate Button
         calculate_button = QPushButton("Calculate Dang")
+        calculate_button.setStyleSheet(f"font-size: {self.font_size}px;")
         calculate_button.clicked.connect(self.calculate_dang)
         main_layout.addWidget(calculate_button)
 
@@ -54,12 +68,15 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
 
     def load_members(self):
-        members = self.db_handler.get_members()
-        self.member_list_widget.clear()
+        members = self.db_handler.get_balances()  # Get members with balances
+        self.member_tree_widget.clear()
         self.payer_combobox.clear()
 
-        for member in members:
-            self.member_list_widget.addItem(member)
+        for member, balance in members.items():
+            tree_item = QTreeWidgetItem([member, f"{balance:.2f}"])
+            tree_item.setCheckState(0, Qt.Unchecked)
+            tree_item.setFlags(tree_item.flags() | Qt.ItemIsEditable)  # Make balance editable
+            self.member_tree_widget.addTopLevelItem(tree_item)
             self.payer_combobox.addItem(member)
 
     def add_member_dialog(self):
@@ -87,7 +104,12 @@ class MainWindow(QMainWindow):
 
     def calculate_dang(self):
         # Calculate each person's share
-        selected_members = [item.text() for item in self.member_list_widget.selectedItems()]
+        selected_members = []
+        for index in range(self.member_tree_widget.topLevelItemCount()):
+            item = self.member_tree_widget.topLevelItem(index)
+            if item.checkState(0) == Qt.Checked:
+                selected_members.append(item.text(0))
+
         payer = self.payer_combobox.currentText()
         try:
             total_amount = float(self.amount_input.text())
@@ -116,6 +138,60 @@ class MainWindow(QMainWindow):
                 self.db_handler.update_balance(member, -total_amount)
 
         self.result_label.setText(result_text)
+        # Reload members to reflect updated balances
+        self.load_members()
+
+    def update_balance(self, item, column):
+        # Update the balance in the database if the balance column is edited
+        if column == 1:  # Balance column
+            member_name = item.text(0)
+            try:
+                new_balance = float(item.text(1))
+            except ValueError:
+                self.result_label.setText("Please enter a valid number for the balance.")
+                return
+
+            # Update the balance in the database
+            self.db_handler.update_balance(member_name, new_balance - self.db_handler.get_balances()[member_name])
+            self.result_label.setText(f"Balance updated for {member_name}")
+
+    def open_settings_dialog(self):
+        # Dialog for Settings
+        settings_dialog = QDialog(self)
+        settings_dialog.setWindowTitle("Settings")
+        settings_layout = QVBoxLayout()
+
+        font_label = QLabel("Adjust Font Size:")
+        font_label.setStyleSheet("font-size: 16px;")
+        settings_layout.addWidget(font_label)
+
+        font_input = QLineEdit()
+        font_input.setPlaceholderText("Enter font size (e.g., 16)")
+        font_input.setText(str(self.font_size))  # Set current font size
+        settings_layout.addWidget(font_input)
+
+        ok_button = QPushButton("OK")
+        ok_button.clicked.connect(lambda: self.apply_settings(font_input.text(), settings_dialog))
+        settings_layout.addWidget(ok_button)
+
+        settings_dialog.setLayout(settings_layout)
+        settings_dialog.exec_()
+
+    def apply_settings(self, font_size_str, dialog):
+        try:
+            font_size = int(font_size_str)
+            if 10 <= font_size <= 30:
+                self.font_size = font_size
+                style_sheet = f"font-size: {self.font_size}px;"
+                self.member_tree_widget.setStyleSheet(style_sheet)
+                self.payer_combobox.setStyleSheet(style_sheet)
+                self.amount_input.setStyleSheet(style_sheet)
+                self.result_label.setStyleSheet(style_sheet)
+                dialog.accept()
+            else:
+                self.result_label.setText("Font size must be between 10 and 30.")
+        except ValueError:
+            self.result_label.setText("Please enter a valid number for the font size.")
 
 
 if __name__ == "__main__":
