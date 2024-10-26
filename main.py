@@ -2,10 +2,10 @@ import sys
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
-                               QComboBox, QTreeWidget, QTreeWidgetItem,
-                               QDialog, QMessageBox)
+                               QComboBox, QTreeWidget, QTreeWidgetItem)
 from PySide6.QtCore import Qt  # Import Qt for setting check states
 from widgets.menu_bar import MenuBar
+from widgets.settings_dialog import SettingsDialog
 from logic.database_handler import DatabaseHandler
 
 
@@ -156,42 +156,18 @@ class MainWindow(QMainWindow):
             self.result_label.setText(f"Balance updated for {member_name}")
 
     def open_settings_dialog(self):
-        # Dialog for Settings
-        settings_dialog = QDialog(self)
-        settings_dialog.setWindowTitle("Settings")
-        settings_layout = QVBoxLayout()
-
-        font_label = QLabel("Adjust Font Size:")
-        font_label.setStyleSheet("font-size: 16px;")
-        settings_layout.addWidget(font_label)
-
-        font_input = QLineEdit()
-        font_input.setPlaceholderText("Enter font size (e.g., 16)")
-        font_input.setText(str(self.font_size))  # Set current font size
-        settings_layout.addWidget(font_input)
-
-        ok_button = QPushButton("OK")
-        ok_button.clicked.connect(lambda: self.apply_settings(font_input.text(), settings_dialog))
-        settings_layout.addWidget(ok_button)
-
-        settings_dialog.setLayout(settings_layout)
+        # Open the Settings dialog
+        settings_dialog = SettingsDialog(self, current_font_size=self.font_size)
         settings_dialog.exec_()
 
-    def apply_settings(self, font_size_str, dialog):
-        try:
-            font_size = int(font_size_str)
-            if 10 <= font_size <= 30:
-                self.font_size = font_size
-                style_sheet = f"font-size: {self.font_size}px;"
-                self.member_tree_widget.setStyleSheet(style_sheet)
-                self.payer_combobox.setStyleSheet(style_sheet)
-                self.amount_input.setStyleSheet(style_sheet)
-                self.result_label.setStyleSheet(style_sheet)
-                dialog.accept()
-            else:
-                QMessageBox.warning(dialog, "Invalid Font Size", "Font size must be between 10 and 30.")
-        except ValueError:
-            QMessageBox.warning(dialog, "Invalid Input", "Please enter a valid number for the font size.")
+    def update_font_size(self, font_size):
+        # Update the font size in the UI
+        self.font_size = font_size
+        style_sheet = f"font-size: {self.font_size}px;"
+        self.member_tree_widget.setStyleSheet(style_sheet)
+        self.payer_combobox.setStyleSheet(style_sheet)
+        self.amount_input.setStyleSheet(style_sheet)
+        self.result_label.setStyleSheet(style_sheet)
 
 
 if __name__ == "__main__":

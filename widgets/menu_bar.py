@@ -1,6 +1,5 @@
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QMenuBar, QMenu, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QMenuBar, QMenu
 
 class MenuBar(QMenuBar):
     def __init__(self, parent=None):
