@@ -2,7 +2,7 @@ import sys
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
-                               QComboBox, QTreeWidget, QTreeWidgetItem)
+                               QComboBox, QTreeWidget, QTreeWidgetItem, QDialog)
 from PySide6.QtCore import Qt  # Import Qt for setting check states
 from widgets.menu_bar import MenuBar
 from widgets.settings_dialog import SettingsDialog
