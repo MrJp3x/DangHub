@@ -2,7 +2,7 @@ import sys
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout,
                                QWidget, QPushButton, QLabel, QLineEdit,
-                               QComboBox, QTreeWidget, QTreeWidgetItem, QDialog)
+                               QComboBox, QTreeWidget, QTreeWidgetItem, QDialog, QMenu, QMessageBox)
 from PySide6.QtCore import Qt  # Import Qt for setting check states
 from widgets.menu_bar import MenuBar
 from widgets.settings_dialog import SettingsDialog
@@ -17,7 +17,31 @@ class MainWindow(QMainWindow):
         self.setGeometry(100, 100, 800, 500)
         self.font_size = 16  # Default font size
         self.init_ui()
+        self.member_tree_widget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.member_tree_widget.customContextMenuRequested.connect(self.show_context_menu)
+
         self.load_members()  # Load members from database
+
+    def show_context_menu(self, position):
+        selected_item = self.member_tree_widget.itemAt(position)
+        if selected_item is not None:
+            context_menu = QMenu(self)
+            delete_action = context_menu.addAction("Delete Member")
+            delete_action.triggered.connect(lambda: self.delete_member(selected_item))
+            context_menu.exec(self.member_tree_widget.viewport().mapToGlobal(position))
+
+    def delete_member(self, item: QTreeWidgetItem):
+        member_name = item.text(0)
+        confirmation = QMessageBox.question(self, "Delete Member", f"Are you sure you want to delete {member_name}?",
+                                            QMessageBox.Yes | QMessageBox.No)
+        if confirmation == QMessageBox.Yes:
+            # Remove from UI
+            index = self.member_tree_widget.indexOfTopLevelItem(item)
+            self.member_tree_widget.takeTopLevelItem(index)
+            # Remove from database
+            db_handler = DatabaseHandler()
+            if not db_handler.delete_member(member_name):
+                QMessageBox.warning(self, "Error", f"Failed to delete member {member_name} from the database.")
 
     def init_ui(self):
         # Menu Bar
